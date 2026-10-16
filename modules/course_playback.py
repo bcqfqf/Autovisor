@@ -144,7 +144,26 @@ async def learn_lesson(
                 retry_count = 0
                 last_activity = time.monotonic()
 
-            current_time = await get_video_attr(page, "currentTime")
+            video_state = await run_on(
+                page,
+                "video",
+                """(el) => ({
+                    currentTime: el.currentTime,
+                    duration: el.duration,
+                    ended: el.ended
+                })""",
+                "读取课时播放状态",
+            )
+            if isinstance(video_state, dict):
+                current_time = video_state.get("currentTime")
+                live_duration = video_state.get("duration")
+                video_ended = bool(video_state.get("ended"))
+                if has_valid_duration(live_duration):
+                    total_time = live_duration
+            else:
+                current_time = await get_video_attr(page, "currentTime")
+                video_ended = False
+
             if isinstance(current_time, (int, float)) and current_time > last_video_time + 0.25:
                 last_video_time = current_time
                 last_activity = time.monotonic()
@@ -161,7 +180,9 @@ async def learn_lesson(
                 总时长=f"{total_time:.0f}s",
                 重试次数=retry_count,
             )
-            if time.monotonic() - last_activity >= STALL_TIMEOUT_SECONDS:
+
+            is_at_end = video_ended or video_at_end(current_time, total_time)
+            if not is_at_end and time.monotonic() - last_activity >= STALL_TIMEOUT_SECONDS:
                 logger.warn("视频和平台进度连续 120 秒未推进,停止当前课时.", shift=True)
                 logger.event(
                     "视频停滞",
@@ -209,7 +230,7 @@ async def learn_lesson(
                     last_activity = time.monotonic()
                 synced_to_catalog = True
 
-                if video_at_end(current_time, total_time):
+                if is_at_end:
                     await page.wait_for_timeout(3000)
                     if await has_visible_verification(page):
                         wait_start = time.time()
@@ -347,12 +368,31 @@ async def review_lesson(
                 last_activity = time.monotonic()
                 continue
 
-            current_time = await get_video_attr(page, "currentTime")
-            if video_at_end(current_time, total_time):
+            video_state = await run_on(
+                page,
+                "video",
+                """(el) => ({
+                    currentTime: el.currentTime,
+                    duration: el.duration,
+                    ended: el.ended
+                })""",
+                "读取复习课时播放状态",
+            )
+            if isinstance(video_state, dict):
+                current_time = video_state.get("currentTime")
+                live_duration = video_state.get("duration")
+                video_ended = bool(video_state.get("ended"))
+                if has_valid_duration(live_duration):
+                    total_time = live_duration
+            else:
+                current_time = await get_video_attr(page, "currentTime")
+                video_ended = False
+
+            if video_ended or video_at_end(current_time, total_time):
                 logger.event(
                     "课时完成",
                     模块="复习",
-                    播放器=f"{current_time:.0f}s",
+                    播放器=f"{current_time:.0f}s" if isinstance(current_time, (int, float)) else "结束",
                     暂停=f"{paused_time:.1f}s",
                 )
                 return paused_time, True, False
