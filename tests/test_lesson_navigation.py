@@ -22,6 +22,10 @@ class LessonNavigationTests(unittest.TestCase):
             catalog_candidates("https://fusioncourseh5.zhihuishu.com/x")[0],
             FUSION_CATALOG,
         )
+        self.assertIs(
+            catalog_candidates("https://wisdom-mooc.zhihuishu.com/study/index")[0],
+            FUSION_CATALOG,
+        )
         self.assertEqual(
             catalog_candidates("https://hike.zhihuishu.com/x"),
             (HIKE_CATALOG,),
