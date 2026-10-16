@@ -63,6 +63,11 @@ async def run_course(
         await FusionAdapter.expand_catalog(page)
         await page.wait_for_timeout(400)
     to_learn = await get_filtered_class(page, catalog)
+    if not to_learn and not getattr(config, "enableRepeat", False):
+        logger.info("检测到当前课程所有课时均已学习完成(进度100%)，自动跳过本课程！", shift=True)
+        logger.event("课程结果", 结果="已完成自动跳过", 待学课时=0)
+        return CourseOutcome.COMPLETED
+
     learning = bool(to_learn)
     lessons = (
         to_learn

@@ -30,6 +30,7 @@ class Config:
             self.showDonateCode = self.get_bool_field("script-option", "showDonateCode")
             # 课程选项
             self.soundOff = self.get_bool_field('course-option', 'soundOff')
+            self.enableRepeat = self.get_bool_field('course-option', 'enableRepeat', fallback=False)
             self.course_match_rule = re.compile("https://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]")
             self.course_urls = self.get_course_urls()
         # 登录

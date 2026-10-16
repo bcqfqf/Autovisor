@@ -24,6 +24,8 @@ limitMaxTime = 30
 limitSpeed = 1.0
 ;设置是否静音播放 (默认:True)
 soundOff = True
+;是否重复刷已全部完成的课程 (默认False,全部学完将自动跳过进入下一门)
+enableRepeat = False
 
 [course-url]
 ;配置要学习的课程链接,支持(智慧)共享课
