@@ -74,21 +74,29 @@ class CourseCrawlerTests(unittest.IsolatedAsyncioTestCase):
         crawler = CourseCrawler()
         crawler.crawl_course_lessons = AsyncMock(return_value=[
             {"title": "小节1", "seconds": 600.0},    # 10 分钟
-            {"title": "最长小节", "seconds": 1520.0}, # 25.33 分钟 -> ceil = 26 + 1 = 27
+            {"title": "最长小节", "seconds": 1520.0}, # 25.33 分钟
             {"title": "小节3", "seconds": 900.0},    # 15 分钟
         ])
 
         config = MagicMock()
+        config.limitSpeed = 1.0
         config.limitMaxTime = 30.0
         logger = MagicMock()
 
+        # 1.0 倍速: 25.33 / 1.0 = 25.33 -> ceil=26 + buffer 1 = 27.0
         new_limit = await crawler.calculate_and_apply_max_time(
             page=None, catalog=WISDOM_CATALOG, config=config, logger=logger, buffer_minutes=1.0
         )
-
         self.assertEqual(new_limit, 27.0)
         self.assertEqual(config.limitMaxTime, 27.0)
-        self.assertTrue(logger.info.called)
+
+        # 1.5 倍速: 25.33 / 1.5 = 16.89 -> ceil=17 + buffer 1 = 18.0
+        config.limitSpeed = 1.5
+        new_limit_15 = await crawler.calculate_and_apply_max_time(
+            page=None, catalog=WISDOM_CATALOG, config=config, logger=logger, buffer_minutes=1.0
+        )
+        self.assertEqual(new_limit_15, 18.0)
+        self.assertEqual(config.limitMaxTime, 18.0)
 
     def test_config_limit_max_time_override(self):
         cfg = Config.__new__(Config)

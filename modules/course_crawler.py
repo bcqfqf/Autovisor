@@ -240,17 +240,27 @@ class CourseCrawler:
         longest_lesson = max(lessons, key=lambda x: x["seconds"])
         max_sec = longest_lesson["seconds"]
         max_min_raw = max_sec / 60.0
-        
+
+        # 获取用户设置的播放倍速 (确保 > 0)
+        speed = float(getattr(config, "limitSpeed", 1.0) or 1.0)
+        if speed <= 0:
+            speed = 1.0
+
+        # 根据倍速计算实际物理播放所需的时间 (分钟)
+        actual_min_needed = max_min_raw / speed
+
         # 加上适度安全余量（向上取整 + buffer_minutes），确保视频能完整看完且不被截断
-        calculated_limit = float(math.ceil(max_min_raw) + buffer_minutes)
-        # 如果原始配置为 0（不限时），若用户未强制限制，可做友好提示，但在此我们按照用户要求赋值
+        calculated_limit = float(math.ceil(actual_min_needed) + buffer_minutes)
         original_limit = config.limitMaxTime
 
         # 动态更新到 config
         config.limitMaxTime = calculated_limit
 
         logger.info(
-            f"成功爬取到 {len(lessons)} 个小节! 最长小节: <<{longest_lesson['title']}>>, 时长: {format_seconds(max_sec)} ({max_min_raw:.1f}分钟)"
+            f"成功爬取到 {len(lessons)} 个小节! 最长小节: <<{longest_lesson['title']}>>, 原视频时长: {format_seconds(max_sec)} ({max_min_raw:.1f}分钟)"
+        )
+        logger.info(
+            f"按当前 {speed:.1f} 倍速换算, 实际播放约需 {actual_min_needed:.1f} 分钟"
         )
         logger.info(
             f"已自动将当前课程挂机时限 limitMaxTime 调整为: {calculated_limit:.1f} 分钟 (包含 {buffer_minutes:.1f} 分钟缓冲余量, 原配置: {original_limit}分钟)"
@@ -260,6 +270,8 @@ class CourseCrawler:
             小节总数=len(lessons),
             最长课时=longest_lesson["title"],
             最长时长=format_seconds(max_sec),
+            倍速=f"{speed}x",
+            预计实播=f"{actual_min_needed:.1f}min",
             设定时限=f"{calculated_limit}min",
         )
         return calculated_limit
