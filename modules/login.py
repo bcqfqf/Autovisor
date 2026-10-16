@@ -18,14 +18,39 @@ def is_login_page(url: str) -> bool:
 async def wait_for_login_complete(
     page: Page, timeout: float = 24 * 3600 * 1000
 ) -> None:
-    """等待页面离开智慧树登录域名。"""
+    """等待页面离开智慧树登录域名，或识别到扫码登录凭证后自动协助跳转。"""
     if not is_login_page(page.url):
         return
-    await page.wait_for_url(
-        lambda url: not is_login_page(str(url)),
-        wait_until="commit",
-        timeout=timeout,
-    )
+
+    import asyncio
+    import time
+    start_time = time.time()
+
+    async def _check_cookies_and_redirect():
+        while time.time() - start_time < timeout:
+            await asyncio.sleep(1.5)
+            if not is_login_page(page.url):
+                return
+            try:
+                cookies = await page.context.cookies(["https://zhihuishu.com", "https://passport.zhihuishu.com"])
+                names = {c.get("name") for c in cookies}
+                if any(k in names for k in ("CAS_LOGIN_STATE", "SESSION", "user_id", "my_user_id")) or len(cookies) >= 6:
+                    if is_login_page(page.url):
+                        await page.goto("https://onlineweb.zhihuishu.com", wait_until="commit")
+                        return
+            except Exception:
+                pass
+
+    redirect_task = asyncio.create_task(_check_cookies_and_redirect())
+    try:
+        await page.wait_for_url(
+            lambda url: not is_login_page(str(url)),
+            wait_until="commit",
+            timeout=timeout,
+        )
+    finally:
+        redirect_task.cancel()
+        await asyncio.gather(redirect_task, return_exceptions=True)
 
 
 async def accept_login_terms(page: Page) -> None:
