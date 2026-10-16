@@ -222,11 +222,11 @@ class CourseCrawler:
         catalog: CatalogSelectors,
         config: Any,
         logger: Any,
-        buffer_minutes: float = 1.0,
+        buffer_minutes: Optional[float] = None,
     ) -> Optional[float]:
-        """爬取所有小节时长，并把 config.limitMaxTime 设置为当前课程的最长小节时长。
+        """爬取全课程所有小节时长，计算整门课程总时长，并根据播放倍速自适应调整 config.limitMaxTime。
         
-        :param buffer_minutes: 在最长小节基础上增加的缓冲时间（分钟），防止网络波动在结尾处超时，默认 1.0 分钟。
+        :param buffer_minutes: 缓冲时间（分钟），默认根据小节数量动态预留切集与加载时间（约每小节 10 秒缓冲，最低 3 分钟）。
         :return: 设置后的 limitMaxTime 分钟数；若未爬取到则返回当前已有的 limitMaxTime。
         """
         logger.info("正在爬取当前课程各小节视频时长...")
@@ -236,42 +236,48 @@ class CourseCrawler:
             logger.warn("未能在当前页面爬取到小节时长,将保持原配置的 limitMaxTime 挂机时限.", shift=True)
             return getattr(config, "limitMaxTime", 0.0)
 
-        # 找到最长的小节
+        # 统计课程各项数据: 总秒数与最长单节秒数
+        total_seconds = sum(item["seconds"] for item in lessons)
         longest_lesson = max(lessons, key=lambda x: x["seconds"])
         max_sec = longest_lesson["seconds"]
-        max_min_raw = max_sec / 60.0
+        total_raw_min = total_seconds / 60.0
 
         # 获取用户设置的播放倍速 (确保 > 0)
         speed = float(getattr(config, "limitSpeed", 1.0) or 1.0)
         if speed <= 0:
             speed = 1.0
 
-        # 根据倍速计算实际物理播放所需的时间 (分钟)
-        actual_min_needed = max_min_raw / speed
+        # 根据倍速计算整门课程实际物理播放所需的时间 (分钟)
+        actual_total_min = total_raw_min / speed
 
-        # 加上适度安全余量（向上取整 + buffer_minutes），确保视频能完整看完且不被截断
-        calculated_limit = float(math.ceil(actual_min_needed) + buffer_minutes)
+        # 动态缓冲：每个课时约预留 0.15 分钟(9秒)的切集/加载/防卡顿余量，最少预留 3.0 分钟
+        if buffer_minutes is None:
+            buffer_minutes = max(3.0, len(lessons) * 0.15)
+
+        # 整门课程总时限 = 预计实际总耗时 + 切集/网络安全缓冲
+        calculated_limit = float(math.ceil(actual_total_min + buffer_minutes))
         original_limit = config.limitMaxTime
 
         # 动态更新到 config
         config.limitMaxTime = calculated_limit
 
         logger.info(
-            f"成功爬取到 {len(lessons)} 个小节! 最长小节: <<{longest_lesson['title']}>>, 原视频时长: {format_seconds(max_sec)} ({max_min_raw:.1f}分钟)"
+            f"成功爬取到 {len(lessons)} 个小节! 课程总时长: {format_seconds(total_seconds)} ({total_raw_min:.1f}分钟), 最长单节: <<{longest_lesson['title']}>> ({format_seconds(max_sec)})"
         )
         logger.info(
-            f"按当前 {speed:.1f} 倍速换算, 实际播放约需 {actual_min_needed:.1f} 分钟"
+            f"按当前 {speed:.1f} 倍速换算, 整门课预计实际挂机耗时: {actual_total_min:.1f} 分钟"
         )
         logger.info(
-            f"已自动将当前课程挂机时限 limitMaxTime 调整为: {calculated_limit:.1f} 分钟 (包含 {buffer_minutes:.1f} 分钟缓冲余量, 原配置: {original_limit}分钟)"
+            f"已自动将整门课程挂机时限 limitMaxTime 调整为: {calculated_limit:.1f} 分钟 (包含 {buffer_minutes:.1f} 分钟安全缓冲, 原配置: {original_limit}分钟)"
         )
         logger.event(
-            "爬虫小节统计",
+            "课程总览与时限调整",
             小节总数=len(lessons),
-            最长课时=longest_lesson["title"],
-            最长时长=format_seconds(max_sec),
-            倍速=f"{speed}x",
-            预计实播=f"{actual_min_needed:.1f}min",
-            设定时限=f"{calculated_limit}min",
+            课程总时长=format_seconds(total_seconds),
+            最长单节=longest_lesson["title"],
+            最长单节时长=format_seconds(max_sec),
+            播放倍速=f"{speed}x",
+            预计总用时=f"{actual_total_min:.1f}min",
+            设定课程时限=f"{calculated_limit}min",
         )
         return calculated_limit

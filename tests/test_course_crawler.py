@@ -83,20 +83,21 @@ class CourseCrawlerTests(unittest.IsolatedAsyncioTestCase):
         config.limitMaxTime = 30.0
         logger = MagicMock()
 
-        # 1.0 倍速: 25.33 / 1.0 = 25.33 -> ceil=26 + buffer 1 = 27.0
+        # 总时长 = 600 + 1520 + 900 = 3020s (50.33 分钟)
+        # 1.0 倍速, buffer=3.0: 50.33 / 1.0 + 3.0 = 53.33 -> ceil = 54.0
         new_limit = await crawler.calculate_and_apply_max_time(
-            page=None, catalog=WISDOM_CATALOG, config=config, logger=logger, buffer_minutes=1.0
+            page=None, catalog=WISDOM_CATALOG, config=config, logger=logger, buffer_minutes=3.0
         )
-        self.assertEqual(new_limit, 27.0)
-        self.assertEqual(config.limitMaxTime, 27.0)
+        self.assertEqual(new_limit, 54.0)
+        self.assertEqual(config.limitMaxTime, 54.0)
 
-        # 1.5 倍速: 25.33 / 1.5 = 16.89 -> ceil=17 + buffer 1 = 18.0
+        # 1.5 倍速, buffer=3.0: 50.33 / 1.5 + 3.0 = 33.55 + 3.0 = 36.55 -> ceil = 37.0
         config.limitSpeed = 1.5
         new_limit_15 = await crawler.calculate_and_apply_max_time(
-            page=None, catalog=WISDOM_CATALOG, config=config, logger=logger, buffer_minutes=1.0
+            page=None, catalog=WISDOM_CATALOG, config=config, logger=logger, buffer_minutes=3.0
         )
-        self.assertEqual(new_limit_15, 18.0)
-        self.assertEqual(config.limitMaxTime, 18.0)
+        self.assertEqual(new_limit_15, 37.0)
+        self.assertEqual(config.limitMaxTime, 37.0)
 
     def test_config_limit_max_time_override(self):
         cfg = Config.__new__(Config)
