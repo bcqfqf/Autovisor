@@ -118,8 +118,17 @@ class Config:
 
     @property
     def limitMaxTime(self) -> float:
+        if getattr(self, "_override_limit_max_time", None) is not None:
+            return self._override_limit_max_time
         self._read_config()
         return self._safe_get_float('course-option', 'limitMaxTime', 0.0)
+
+    @limitMaxTime.setter
+    def limitMaxTime(self, value: float) -> None:
+        self._override_limit_max_time = float(value)
+
+    def reset_limit_max_time(self) -> None:
+        self._override_limit_max_time = None
 
     @property
     def limitSpeed(self) -> float:

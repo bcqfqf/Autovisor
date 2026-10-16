@@ -13,6 +13,7 @@ from modules.lesson_navigation import (
 from modules.tasks import has_visible_verification, wait_until_verification_hidden
 from modules.utils import get_filtered_class, get_lesson_name
 from modules.fusion_adapter import FusionAdapter
+from modules.course_crawler import CourseCrawler
 
 # 课时项(<li>)的点击发生在 set_default_timeout(10000) 之前, 不显式限时就会沿用
 # 页面默认的 24 小时; 弹窗未关、被遮挡等异常情况下会一直卡在可操作性等待上。
@@ -78,6 +79,10 @@ async def run_course(
         logger.error("课程目录中没有可播放的视频课时.")
         logger.event("课程结果", 结果="无可用课时")
         return CourseOutcome.FAILED
+
+    # 自动爬取当前课程各个小节时长，并把 limitMaxTime 动态设置为最大小节时间
+    crawler = CourseCrawler()
+    await crawler.calculate_and_apply_max_time(page, catalog, config, logger)
 
     start_time = time.time()
     paused_time = 0.0

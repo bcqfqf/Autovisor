@@ -18,6 +18,7 @@ from modules.course_runner import (
     detect_catalog_after_verification,
     run_course,
 )
+from modules.course_crawler import CourseCrawler
 from modules.diagnostics import check_browser, check_course
 from modules.login import (
     LOGIN_PASSWORD_SELECTOR,
@@ -249,6 +250,8 @@ async def main(config) -> bool:
         remember_login_cookies(cookies)
         logger.event("本地凭证", 数量=len(cookies) if cookies else 0, 文件=COOKIE_PATH)
         page, context = await init_page(p, config, cookies)
+        crawler = CourseCrawler()
+        crawler.attach_response_listener(page)
         monitor_task = None
         try:
             login_by_cookie = await ensure_login(context, page, cookies, config, modules)
