@@ -279,6 +279,7 @@ async def main(config) -> bool:
             for index, course_url in enumerate(config.course_urls, 1):
                 logger.section(f"课程 {index}/{course_total}")
                 logger.context(课程序号=f"{index}/{course_total}", 课程地址=course_url)
+                crawler.clear()
                 logger.info("正在加载播放页...")
                 await page.goto(course_url, wait_until="commit")
                 await page.wait_for_timeout(1500)
@@ -315,7 +316,7 @@ async def main(config) -> bool:
 
                 playback_enabled.clear()
                 outcome = await run_course(
-                    page, catalog, config, logger, playback_enabled
+                    page, catalog, config, logger, playback_enabled, crawler=crawler
                 )
                 playback_enabled.clear()
                 logger.event("课程结果", 结果=outcome.value, 目录类型=catalog.name)

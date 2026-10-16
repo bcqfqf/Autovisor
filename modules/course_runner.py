@@ -1,7 +1,7 @@
 import time
 from enum import Enum
 
-from playwright.async_api import Page
+from playwright.async_api import Locator, Page
 
 from modules.course_playback import elapsed_minutes, learn_lesson, review_lesson
 from modules.lesson_navigation import (
@@ -48,12 +48,20 @@ async def detect_catalog_after_verification(
             continue
 
 
+async def _click_lesson(lesson: Locator) -> None:
+    try:
+        await lesson.click(timeout=LESSON_CLICK_TIMEOUT_MS)
+    except Exception:
+        await lesson.evaluate("el => el.click()")
+
+
 async def run_course(
     page: Page,
     catalog: CatalogSelectors,
     config,
     logger,
     playback_enabled,
+    crawler: CourseCrawler | None = None,
 ) -> CourseOutcome:
     await page.wait_for_selector(
         catalog.item, state="attached", timeout=CATALOG_ATTACH_TIMEOUT_MS
@@ -86,7 +94,8 @@ async def run_course(
         return CourseOutcome.FAILED
 
     # 自动爬取当前课程各个小节时长，并把 limitMaxTime 动态设置为最大小节时间
-    crawler = CourseCrawler()
+    if crawler is None:
+        crawler = CourseCrawler()
     await crawler.calculate_and_apply_max_time(page, catalog, config, logger)
 
     start_time = time.time()
@@ -94,7 +103,7 @@ async def run_course(
     for index, lesson in enumerate(lessons):
         position = f"{index + 1}/{len(lessons)}"
         playback_enabled.clear()
-        await lesson.click(timeout=LESSON_CLICK_TIMEOUT_MS)
+        await _click_lesson(lesson)
         active = await wait_for_lesson_active(lesson, catalog)
         if not active:
             logger.warn("课时切换超时,正在重试一次.", shift=True)
@@ -104,7 +113,7 @@ async def run_course(
                 目录类型=catalog.name,
                 选择器=catalog.active,
             )
-            await lesson.click(timeout=LESSON_CLICK_TIMEOUT_MS)
+            await _click_lesson(lesson)
             active = await wait_for_lesson_active(lesson, catalog)
         if not active:
             logger.error(f"无法选中课时,目录类型: {catalog.name}")

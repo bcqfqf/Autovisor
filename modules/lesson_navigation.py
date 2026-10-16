@@ -32,11 +32,10 @@ WISDOM_CATALOG = CatalogSelectors(
 
 FUSION_CATALOG = CatalogSelectors(
     name="fusion",
-    # 真实融合课小节的容器是 .chapter-item(完整课时列表, 含 finish-icon);
-    # .chapter-content-second 只是"当前展开层级的子节点"(真站实测仅 4/58),
-    # 用它会漏采大部分课时, 故校准为 .chapter-item。
-    item=".chapter-item",
-    active=".chapter-content-second.current",
+    # 融合课小节存在两级结构: 拥有子节的章为 .chapter-item(内含 .chapter-content-second 课时节点),
+    # 无子节的章自身即为课时。使用组合选择器精确定位所有叶子课时节点，防止遗漏嵌套子课时(如 0.1.2)。
+    item=".chapter-content-second, .chapter-item:not(:has(.chapter-content-second))",
+    active=".chapter-content-second.current, .chapter-item.current",
     finish=".finish-icon",
     title=".item-name",
     active_class="current",

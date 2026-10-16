@@ -17,6 +17,19 @@ class LessonNavigationTests(unittest.TestCase):
         self.assertEqual(WISDOM_CATALOG.finish, ".child-check")
         self.assertEqual(WISDOM_CATALOG.progress_attribute, "aria-valuenow")
 
+    def test_current_fusion_selectors_match_leaf_lessons(self):
+        self.assertEqual(
+            FUSION_CATALOG.item,
+            ".chapter-content-second, .chapter-item:not(:has(.chapter-content-second))",
+        )
+        self.assertEqual(
+            FUSION_CATALOG.active,
+            ".chapter-content-second.current, .chapter-item.current",
+        )
+        self.assertEqual(FUSION_CATALOG.finish, ".finish-icon")
+        self.assertEqual(FUSION_CATALOG.progress, ".el-progress")
+        self.assertEqual(FUSION_CATALOG.progress_attribute, "aria-valuenow")
+
     def test_catalog_url_hints_only_change_detection_priority(self):
         self.assertIs(
             catalog_candidates("https://fusioncourseh5.zhihuishu.com/x")[0],

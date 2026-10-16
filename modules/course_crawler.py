@@ -121,6 +121,10 @@ class CourseCrawler:
         self._intercepted_lessons: List[Dict[str, Any]] = []
         self._listener_attached = False
 
+    def clear(self) -> None:
+        """清空上一门课程拦截的接口小节数据。"""
+        self._intercepted_lessons.clear()
+
     def attach_response_listener(self, page: Page) -> None:
         """注册网络响应监听, 捕获智慧树课程目录接口数据。"""
         if self._listener_attached:
