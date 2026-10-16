@@ -15,7 +15,7 @@ enableAutoCaptcha = True
 ;是否自动隐藏浏览器窗口(默认:False)
 enableHideWindow = False
 ;是否展示赞赏码(默认:True)
-showDonateCode = True
+showDonateCode = False
 
 [course-option]
 ;限制每门课程刷课时长/min (不限制:0)
